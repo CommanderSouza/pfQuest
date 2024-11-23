@@ -94,8 +94,8 @@ end)
 tracker:SetScript("OnUpdate", function()
   if WorldMapFrame:IsShown() then
     if this.strata ~= "FULLSCREEN_DIALOG" then
-      this:SetFrameStrata("FULLSCREEN_DIALOG")
-      this.strata = "FULLSCREEN_DIALOG"
+      this:SetFrameStrata("BACKGROUND")
+      this.strata = "BACKGROUND"
     end
   else
     if this.strata ~= "BACKGROUND" then
@@ -136,7 +136,7 @@ tracker.mode = "QUEST_TRACKING"
 tracker.backdrop = CreateFrame("Frame", nil, tracker)
 tracker.backdrop:SetAllPoints(tracker)
 tracker.backdrop.bg = tracker.backdrop:CreateTexture(nil, "BACKGROUND")
-tracker.backdrop.bg:SetTexture(0,0,0,.2)
+tracker.backdrop.bg:SetTexture(0,0,0,0)
 tracker.backdrop.bg:SetAllPoints()
 
 do -- button panel
