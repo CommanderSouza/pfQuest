@@ -1,7 +1,7 @@
 -- multi api compat
 local compat = pfQuestCompat
 
-pfDatabase = {}
+pfDatabase = { icons = {} }
 
 local loc = GetLocale()
 local dbs = { "items", "quests", "quests-itemreq", "objects", "units", "zones", "professions", "areatrigger", "refloot" }
@@ -162,6 +162,22 @@ for id, db in pairs(dbs) do
   pfDB[db]["loc"] = pfDB[db][loc] or pfDB[db]["enUS"] or {}
   pfDatabase.dbstring = pfDatabase.dbstring .. " |cffcccccc[|cffffffff" .. db .. "|cffcccccc:|cff33ffcc" .. ( pfDB[db][loc] and loc or "enUS" ) .. "|cffcccccc]"
 end
+
+-- track all previous meta selections on login
+pfDatabase.tracking = CreateFrame("Frame", "pfDatabaseMetaTracking", UIParent)
+pfDatabase.tracking:RegisterEvent("PLAYER_ENTERING_WORLD")
+pfDatabase.tracking:SetScript("OnEvent", function()
+  -- break on empty config
+  if not pfQuest_track then return end
+
+  -- enable all tracked
+  for name, data in pairs(pfQuest_track) do
+    pfDatabase:SearchMetaRelation(data[1], data[2])
+  end
+
+  -- remove events
+  this:UnregisterAllEvents()
+end)
 
 -- track questitems to maintain object requirements
 pfDatabase.itemlist = CreateFrame("Frame", "pfDatabaseQuestItemTracker", UIParent)
@@ -749,15 +765,85 @@ function pfDatabase:SearchMetaRelation(query, meta, show)
       elseif not skill[track] and not string.find(value, faction) then
         -- faction is different from the queried one
       else
+        local prev_icon = meta.icon
+        local object = pfDB["objects"]["loc"][math.abs(entry)]
+        local unit = pfDB["units"]["loc"][entry]
+
+        -- handle custom tracking icons
+        if pfQuest_config.trackingicons == "0" then
+          meta.icon = nil
+        elseif entry < 0 and object and pfDatabase.icons[object] then
+          meta.icon = pfDatabase.icons[object]
+        elseif entry > 0 and unit and pfDatabase.icons[unit] then
+          meta.icon = pfDatabase.icons[unit]
+        end
+
+        -- set custom fade range for skill-trackables
+        if meta.icon and skill[track] then
+          meta.fade_range = 75
+        elseif meta.icon then
+          meta.fade_range = 10
+        else
+          meta.fade_range = nil
+        end
+
         if entry < 0 then
           pfDatabase:SearchObjectID(math.abs(entry), meta, maps)
         else
           pfDatabase:SearchMobID(entry, meta, maps)
         end
+
+        meta.icon = prev_icon
       end
     end
   end
 
+  return maps
+end
+
+-- Search TrackMeta
+-- Scans for all entries within the specified list
+-- Adds map nodes for each, saves it to the persistent
+-- tracking variable per character and returns a map table
+function pfDatabase:TrackMeta(list, state)
+  local list = alias[list] and alias[list] or list
+  local identifier = "TRACK_"..string.upper(list)
+
+  local meta = {
+    ["addon"] = identifier,
+    ["icon"] = pfQuestConfig.path.."\\img\\tracking\\"..list,
+  }
+
+  local query = {
+    name = list
+  }
+
+  local maps = nil
+
+  -- hide previous tracks
+  pfQuest_track[list] = nil
+  pfMap:DeleteNode(identifier)
+  pfMap:UpdateNodes()
+
+  -- break here if nothing should be tracked
+  if not state then return end
+
+  -- add extended state values to query
+  -- this is used for min/max values
+  if type(state) == "table" then
+    for k, v in pairs(state) do
+      query[k] = v
+    end
+  end
+
+  -- save and perform the actual meta tracking
+  pfQuest_track[list] = { query, meta }
+  local maps = pfDatabase:SearchMetaRelation(query, meta)
+
+  -- remove invalid results
+  if not maps then pfQuest_track[list] = nil end
+
+  -- return map results
   return maps
 end
 
@@ -1434,6 +1520,26 @@ function pfDatabase:SearchQuests(meta, maps)
         end
       end
     end
+  end
+end
+
+-- AddCustomIcon
+-- Helper function to add custom tracking node icons
+--   id: negative for objects, positive for units
+--   img: path to the image that is appended to root
+--   root: optional, default: "Interface\\AddOns\\pfQuest"
+function pfDatabase:AddCustomIcon(id, img, root)
+  if not id or not img then return end
+
+  root = root and root .. "\\" or pfQuestConfig.path .. "\\"
+
+  local object = pfDB["objects"]["loc"][math.abs(id)]
+  local unit = pfDB["units"]["loc"][math.abs(id)]
+
+  if id < 0 and object then
+    pfDatabase.icons[object] = root .. img
+  elseif id > 0 and unit then
+    pfDatabase.icons[unit] = root .. img
   end
 end
 

@@ -114,6 +114,8 @@ pfQuest_defconfig = {
     default = nil, type = "header" },
   { text = L["Enable Minimap Nodes"],
     default = "1", type = "checkbox", config = "minimapnodes" },
+  { text = L["Use Icons For Tracking Nodes"],
+    default = "1", type = "checkbox", config = "trackingicons" },
   { text = L["Use Monochrome Cluster Icons"],
     default = "0", type = "checkbox", config = "clustermono" },
   { text = L["Use Cut-Out Minimap Node Icons"],
@@ -186,6 +188,7 @@ pfQuestConfig:SetScript("OnEvent", function()
     pfQuest_history = pfQuest_history or {}
     pfQuest_colors = pfQuest_colors or {}
     pfQuest_config = pfQuest_config or {}
+    pfQuest_track = pfQuest_track or {}
     pfBrowser_fav = pfBrowser_fav or {["units"] = {}, ["objects"] = {}, ["items"] = {}, ["quests"] = {}}
 
     -- clear quest history on new characters
@@ -417,7 +420,7 @@ function pfQuestConfig:CreateConfigEntries(config)
     if data.type then
       -- empty line for headers, next column for > 20 entries
       row = row + ( data.type == "header" and row > 1 and 2 or 1 )
-      if row > 20 and data.type == "header" then
+      if row > 22 and data.type == "header" then
         column, row = column + 1, 1
       end
 
